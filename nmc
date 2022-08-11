@@ -1,0 +1,63 @@
+#!/usr/bin/env luajit
+
+local pp = require('src.pretty')
+
+local print_help = function(script, file)
+    file:write(string.format([[usage: %s [options]... input_file
+
+Available options:
+  -o | --output FILE  Specify the output file. (Set to - for stdout).
+  -h | --help         Display this help message.
+  --                  Stop handling options
+]], script))
+end
+
+local main = function(argv)
+    local opts = require('src.args').parse_args({
+        {'o', 'output', arg = true}, --
+        {'h', 'help'}
+    }, argv)
+
+    -- pp.pformat(argv)
+    -- pp.pformat(opts)
+
+    if opts.h then
+        print_help(argv[0], io.stdout)
+        os.exit(0)
+    end
+    opts.o = opts.o or 'a.out.lua'
+
+    if #opts > 1 then
+        io.stderr:write('Too many input files given. Expected only one.\n')
+        os.exit(1)
+    elseif #opts < 1 then
+        io.stderr:write('No input file given.\n')
+        os.exit(1)
+    end
+    opts.i = opts[1]
+
+    local input_file, err = io.open(opts.i, 'r')
+    if not input_file then
+        local msg = string.format('Error opening input file %s.', err)
+        io.stderr:write(msg)
+        os.exit(1)
+    end
+
+    if opts.o == '-' then
+        output_file = io.stdout
+    else
+        output_file, err = io.open(opts.o, 'w')
+        if not input_file then
+            local msg = string.format('Error opening output file %s.', err)
+            io.stderr:write(msg)
+            os.exit(1)
+        end
+    end
+
+    require('src.nmc').compile {input = input_file, output = output_file}
+
+    input_file:close()
+    output_file:close()
+end
+
+main(arg)
